@@ -3,7 +3,7 @@
 import logging
 import os
 from playwright.sync_api import sync_playwright, Browser, Page
-from playwright_stealth import stealth_sync
+from playwright_stealth import Stealth
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +23,17 @@ class BrowserSession:
             headless = True
         self.headless = headless
         self.playwright = None
+        self.playwright_context = None
         self.browser = None
         self.page = None
+        self.stealth = Stealth()
     
     def __enter__(self) -> "BrowserSession":
         logger.info("Launching browser")
-        self.playwright = sync_playwright().start()
+        
+        # Use stealth wrapper for playwright
+        self.playwright_context = self.stealth.use_sync(sync_playwright())
+        self.playwright = self.playwright_context.__enter__()
         
         # Use Firefox in CI as it's less likely to be blocked
         if is_ci_environment():
@@ -60,18 +65,13 @@ class BrowserSession:
             )
         
         self.page = context.new_page()
-        
-        # Apply stealth patches to avoid bot detection (works best with Chromium)
-        if not is_ci_environment():
-            stealth_sync(self.page)
-        
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.browser:
             self.browser.close()
-        if self.playwright:
-            self.playwright.stop()
+        if self.playwright_context:
+            self.playwright_context.__exit__(exc_type, exc_val, exc_tb)
         logger.info("Browser closed")
     
     def goto(self, url: str, wait_time: int = 3000, retries: int = 3):
