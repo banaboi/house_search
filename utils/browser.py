@@ -3,6 +3,7 @@
 import logging
 import os
 from playwright.sync_api import sync_playwright, Browser, Page
+from playwright_stealth import stealth_sync
 
 logger = logging.getLogger(__name__)
 
@@ -28,23 +29,42 @@ class BrowserSession:
     def __enter__(self) -> "BrowserSession":
         logger.info("Launching browser")
         self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(
-            headless=self.headless,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--disable-dev-shm-usage",
-                "--no-sandbox",
-            ]
-        )
-        # Create a context with realistic browser settings to avoid bot detection
-        context = self.browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            viewport={"width": 1920, "height": 1080},
-            java_script_enabled=True,
-            locale="en-AU",
-            timezone_id="Australia/Sydney",
-        )
+        
+        # Use Firefox in CI as it's less likely to be blocked
+        if is_ci_environment():
+            logger.info("Using Firefox for better compatibility")
+            self.browser = self.playwright.firefox.launch(
+                headless=self.headless,
+            )
+            context = self.browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+                viewport={"width": 1920, "height": 1080},
+                locale="en-AU",
+                timezone_id="Australia/Sydney",
+            )
+        else:
+            self.browser = self.playwright.chromium.launch(
+                headless=self.headless,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-dev-shm-usage",
+                    "--no-sandbox",
+                ]
+            )
+            context = self.browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                viewport={"width": 1920, "height": 1080},
+                java_script_enabled=True,
+                locale="en-AU",
+                timezone_id="Australia/Sydney",
+            )
+        
         self.page = context.new_page()
+        
+        # Apply stealth patches to avoid bot detection (works best with Chromium)
+        if not is_ci_environment():
+            stealth_sync(self.page)
+        
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
