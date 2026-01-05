@@ -1,15 +1,25 @@
 """Browser utilities for Playwright automation."""
 
 import logging
+import os
 from playwright.sync_api import sync_playwright, Browser, Page
 
 logger = logging.getLogger(__name__)
+
+
+def is_ci_environment() -> bool:
+    """Check if running in a CI environment (GitHub Actions, etc.)."""
+    return os.environ.get("CI", "").lower() == "true" or os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
 
 
 class BrowserSession:
     """Context manager for Playwright browser sessions."""
     
     def __init__(self, headless: bool = False):
+        # Force headless mode in CI environments
+        if is_ci_environment() and not headless:
+            logger.info("CI environment detected, forcing headless mode")
+            headless = True
         self.headless = headless
         self.playwright = None
         self.browser = None
