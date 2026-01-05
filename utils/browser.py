@@ -92,10 +92,36 @@ class BrowserSession:
         
         raise last_error
     
-    def click(self, selector: str, wait_after: int = 500):
-        """Click an element and wait."""
+    def click(self, selector: str, wait_after: int = 500, force: bool = False):
+        """Click an element and wait.
+        
+        Args:
+            selector: CSS selector for the element to click
+            wait_after: Time to wait after clicking (ms)
+            force: If True, force click even if element is not visible
+        """
         logger.info(f"Clicking: {selector}")
-        self.page.click(selector, timeout=5000)
+        
+        # First, try to scroll the element into view to handle off-screen elements
+        try:
+            element = self.page.locator(selector).first
+            element.scroll_into_view_if_needed(timeout=5000)
+            self.page.wait_for_timeout(300)  # Brief wait after scroll
+        except Exception as e:
+            logger.debug(f"Could not scroll element into view: {e}")
+        
+        try:
+            # Try normal click first
+            self.page.click(selector, timeout=5000, force=force)
+        except Exception as e:
+            # If normal click fails due to visibility, try JavaScript click as fallback
+            logger.warning(f"Normal click failed, trying JavaScript click: {e}")
+            try:
+                self.page.locator(selector).first.evaluate("el => el.click()")
+            except Exception as js_error:
+                logger.error(f"JavaScript click also failed: {js_error}")
+                raise e  # Re-raise the original error
+        
         self.page.wait_for_timeout(wait_after)
     
     def fill(self, selector: str, value: str, wait_after: int = 500):
