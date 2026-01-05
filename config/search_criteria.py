@@ -22,7 +22,7 @@ SEARCH_CRITERIA = {
     
     # Price range
     "price_min": 0,
-    "price_max": 1000000,
+    "price_max": 1100000,
     
     # Search mode
     "mode": "buy",  # buy, rent, sold, etc.
