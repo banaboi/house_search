@@ -28,8 +28,23 @@ class BrowserSession:
     def __enter__(self) -> "BrowserSession":
         logger.info("Launching browser")
         self.playwright = sync_playwright().start()
-        self.browser = self.playwright.chromium.launch(headless=self.headless)
-        self.page = self.browser.new_page()
+        self.browser = self.playwright.chromium.launch(
+            headless=self.headless,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--disable-dev-shm-usage",
+                "--no-sandbox",
+            ]
+        )
+        # Create a context with realistic browser settings to avoid bot detection
+        context = self.browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            viewport={"width": 1920, "height": 1080},
+            java_script_enabled=True,
+            locale="en-AU",
+            timezone_id="Australia/Sydney",
+        )
+        self.page = context.new_page()
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -39,11 +54,23 @@ class BrowserSession:
             self.playwright.stop()
         logger.info("Browser closed")
     
-    def goto(self, url: str, wait_time: int = 3000):
+    def goto(self, url: str, wait_time: int = 3000, retries: int = 3):
         """Navigate to a URL and wait for page to settle."""
         logger.info(f"Navigating to {url}")
-        self.page.goto(url, timeout=30000, wait_until="domcontentloaded")
-        self.page.wait_for_timeout(wait_time)
+        
+        last_error = None
+        for attempt in range(retries):
+            try:
+                self.page.goto(url, timeout=30000, wait_until="domcontentloaded")
+                self.page.wait_for_timeout(wait_time)
+                return
+            except Exception as e:
+                last_error = e
+                if attempt < retries - 1:
+                    logger.warning(f"Navigation failed (attempt {attempt + 1}/{retries}): {e}")
+                    self.page.wait_for_timeout(2000)  # Wait before retry
+        
+        raise last_error
     
     def click(self, selector: str, wait_after: int = 500):
         """Click an element and wait."""
