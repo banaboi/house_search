@@ -46,9 +46,11 @@ class PropertyListing:
     status: str = ""  # e.g., "Sold", "For Sale", etc.
     
     # Transit time to key locations (in minutes via public transport)
-    distance_bella_vista_mins: Optional[float] = None
     distance_rnsh_mins: Optional[float] = None
     distance_qvb_mins: Optional[float] = None
+    
+    # Driving time to key locations (in minutes)
+    distance_bella_vista_mins: Optional[float] = None
     
     def to_dict(self) -> dict:
         """Convert to dictionary, handling list fields."""
@@ -116,6 +118,60 @@ class PropertyListingCollection:
         for listing in self.listings:
             if listing.address_line2 and suburb.lower() in listing.address_line2.lower():
                 filtered.add(listing)
+        return filtered
+
+    def filter_by_travel_time(
+        self,
+        max_transit_mins: float = 40,
+        max_driving_mins: float = 35,
+    ) -> 'PropertyListingCollection':
+        """
+        Return a new collection filtered by travel time limits.
+        
+        Excludes listings where:
+        - Any transit location exceeds max_transit_mins
+        - Any driving location exceeds max_driving_mins
+        
+        Args:
+            max_transit_mins: Maximum allowed transit time in minutes
+            max_driving_mins: Maximum allowed driving time in minutes
+            
+        Returns:
+            A new collection with only listings within travel time limits
+        """
+        from config.locations import (
+            get_transit_locations, 
+            get_driving_locations,
+        )
+        
+        filtered = PropertyListingCollection(source=self.source)
+        excluded_count = 0
+        
+        for listing in self.listings:
+            exceeds_limit = False
+            
+            # Check transit locations
+            for loc in get_transit_locations():
+                field_name = f"distance_{loc.slug}_mins"
+                travel_time = getattr(listing, field_name, None)
+                if travel_time is not None and travel_time > max_transit_mins:
+                    exceeds_limit = True
+                    break
+            
+            # Check driving locations
+            if not exceeds_limit:
+                for loc in get_driving_locations():
+                    field_name = f"distance_{loc.slug}_mins"
+                    travel_time = getattr(listing, field_name, None)
+                    if travel_time is not None and travel_time > max_driving_mins:
+                        exceeds_limit = True
+                        break
+            
+            if not exceeds_limit:
+                filtered.add(listing)
+            else:
+                excluded_count += 1
+        
         return filtered
 
     def to_html(self, filepath: str) -> str:

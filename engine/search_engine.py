@@ -33,8 +33,10 @@ class PropertySearchEngine:
         with BrowserSession(headless=True) as session:
             session.goto(self.config.base_url)
             html = session.get_html()
-            files = extract_and_save(html, output_dir, prefix="chunk")
-            logger.info(f"Saved {len(files)} chunks to {output_dir}")
+            save_chunks = self.criteria.get("save_html_chunks", False)
+            files = extract_and_save(html, output_dir, prefix="chunk", save_to_disk=save_chunks)
+            if save_chunks:
+                logger.info(f"Saved {len(files)} chunks to {output_dir}")
     
     def grab_filters_html(self, output_dir: str = "output/filters"):
         """Open the filters modal and grab HTML."""
@@ -57,8 +59,10 @@ class PropertySearchEngine:
             
             # Grab the HTML with the modal open
             html = session.get_html()
-            files = extract_and_save(html, output_dir, prefix="filter_chunk")
-            logger.info(f"Saved {len(files)} chunks to {output_dir}")
+            save_chunks = self.criteria.get("save_html_chunks", False)
+            files = extract_and_save(html, output_dir, prefix="filter_chunk", save_to_disk=save_chunks)
+            if save_chunks:
+                logger.info(f"Saved {len(files)} chunks to {output_dir}")
             
             # Also take a screenshot of the modal
             os.makedirs(os.path.dirname(output_dir) or ".", exist_ok=True)
@@ -393,7 +397,9 @@ class PropertySearchEngine:
         self.session.screenshot("output/search_results.png")
         
         # Save and chunk the search results HTML
+        save_chunks = self.criteria.get("save_html_chunks", False)
         logger.info("Saving search results HTML...")
         html = self.session.get_html()
-        files = extract_and_save(html, output_dir, prefix="result_chunk")
-        logger.info(f"Saved {len(files)} chunks to {output_dir}")
+        files = extract_and_save(html, output_dir, prefix="result_chunk", save_to_disk=save_chunks)
+        if save_chunks:
+            logger.info(f"Saved {len(files)} chunks to {output_dir}")

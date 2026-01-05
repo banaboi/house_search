@@ -8,7 +8,7 @@ from typing import Optional
 
 import googlemaps
 
-from config.locations import KEY_LOCATIONS, Location
+from config.locations import KEY_LOCATIONS, Location, TravelMode
 
 logger = logging.getLogger(__name__)
 
@@ -81,40 +81,43 @@ class DistanceCalculator:
         except IOError as e:
             logger.warning(f"Failed to save distance cache: {e}")
     
-    def _get_cache_key(self, origin: str, destination: str) -> str:
+    def _get_cache_key(self, origin: str, destination: str, mode: str = "transit") -> str:
         """Generate a cache key for an origin-destination pair."""
-        return f"transit|{origin.lower().strip()}|{destination.lower().strip()}"
+        return f"{mode}|{origin.lower().strip()}|{destination.lower().strip()}"
     
-    def get_transit_time(
+    def get_travel_time(
         self, 
         origin: str, 
         destination: str,
+        mode: TravelMode = TravelMode.TRANSIT,
         use_cache: bool = True
     ) -> Optional[dict]:
         """
-        Get public transport travel time between two addresses.
+        Get travel time between two addresses using the specified mode.
         
         Args:
             origin: Origin address
             destination: Destination address
+            mode: Travel mode (TRANSIT or DRIVING)
             use_cache: Whether to use cached results
             
         Returns:
             Dict with 'duration_mins' or None if failed
         """
-        cache_key = self._get_cache_key(origin, destination)
+        mode_str = mode.value
+        cache_key = self._get_cache_key(origin, destination, mode_str)
         
         # Check cache first
         if use_cache and cache_key in self.cache:
-            logger.debug(f"Cache hit for {origin} -> {destination}")
+            logger.debug(f"Cache hit for {origin} -> {destination} ({mode_str})")
             return self.cache[cache_key]
         
         try:
-            # Call Google Maps Distance Matrix API with transit mode
+            # Call Google Maps Distance Matrix API with specified mode
             result = self.client.distance_matrix(
                 origins=[origin],
                 destinations=[destination],
-                mode="transit",
+                mode=mode_str,
                 units="metric",
             )
             
@@ -124,6 +127,7 @@ class DistanceCalculator:
                 if element['status'] == 'OK':
                     distance_data = {
                         'duration_mins': round(element['duration']['value'] / 60, 0),
+                        'mode': mode_str,
                     }
                     
                     # Cache the result
@@ -143,13 +147,32 @@ class DistanceCalculator:
             logger.error(f"Error calculating distance: {e}")
         
         return None
+
+    def get_transit_time(
+        self, 
+        origin: str, 
+        destination: str,
+        use_cache: bool = True
+    ) -> Optional[dict]:
+        """
+        Get public transport travel time between two addresses.
+        
+        Args:
+            origin: Origin address
+            destination: Destination address
+            use_cache: Whether to use cached results
+            
+        Returns:
+            Dict with 'duration_mins' or None if failed
+        """
+        return self.get_travel_time(origin, destination, TravelMode.TRANSIT, use_cache)
     
     def get_distances_to_key_locations(
         self, 
         property_address: str
     ) -> dict[str, Optional[dict]]:
         """
-        Get public transport travel times from a property to all key locations.
+        Get travel times from a property to all key locations using appropriate mode.
         
         Args:
             property_address: The property address
@@ -160,10 +183,11 @@ class DistanceCalculator:
         distances = {}
         
         for location in self.locations:
-            logger.debug(f"Calculating transit time to {location.name}")
-            distance_data = self.get_transit_time(
+            logger.debug(f"Calculating {location.travel_mode.value} time to {location.name}")
+            distance_data = self.get_travel_time(
                 property_address, 
-                location.address
+                location.address,
+                location.travel_mode
             )
             distances[location.slug] = distance_data
             

@@ -13,26 +13,7 @@ SEARCH_CRITERIA = {
     
     # Locations to search
     "locations": [
-        "Chatswood",
-        "Chatswood West",
-        "Willoughby",
-        "Lane Cove",
-        "Lane Cove North",
-        "Lane Cove West",
-        "Greenwich",
-        "Gladesville",
-        "Hunters Hill",
-        "Woolwich",
-        "Drummoyne",
-        "Artarmon",
-        "Lindfield",
-        "Killara",
-        "Roseville",
-        "St Ives",
-        "West Ryde",
-        "East Ryde",
-        "North Ryde",
-        "Macquarie Park",
+        "North Shore - Lower"
     ],
     
     # Property type (house, apartment, townhouse, land, retirement)
@@ -45,7 +26,10 @@ SEARCH_CRITERIA = {
     
     # Search mode
     "mode": "buy",  # buy, rent, sold, etc.
-    
+
     # Additional features (optional)
-    "keywords": "brick",
+    # "keywords": "brick",
+    
+    # Output settings
+    "save_html_chunks": True,  # Set to True to save HTML chunks to disk
 }

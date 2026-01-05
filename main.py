@@ -179,9 +179,21 @@ def main():
         print(f"Suburbs: {', '.join(collection.get_unique_suburbs())}")
         
         if args.enrich:
-            print(f"\nDistances calculated to:")
-            from config import KEY_LOCATIONS
-            for loc in KEY_LOCATIONS:
+            from config.locations import (
+                KEY_LOCATIONS,
+                MAX_TRANSIT_TIME_MINS,
+                MAX_DRIVING_TIME_MINS,
+                get_transit_locations,
+                get_driving_locations,
+            )
+            print(f"\nTravel time limits applied:")
+            print(f"  - Transit locations: max {MAX_TRANSIT_TIME_MINS} mins")
+            print(f"  - Driving locations: max {MAX_DRIVING_TIME_MINS} mins")
+            print(f"\nTransit locations (public transport):")
+            for loc in get_transit_locations():
+                print(f"  - {loc.name}")
+            print(f"\nDriving locations:")
+            for loc in get_driving_locations():
                 print(f"  - {loc.name}")
         
         print(f"\nOutput files:")

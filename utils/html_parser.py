@@ -84,12 +84,28 @@ def save_chunks(chunks: list[str], output_dir: str, prefix: str = "chunk") -> li
 
 
 def extract_and_save(html: str, output_dir: str, prefix: str = "chunk", 
-                     chunk_size: int = DEFAULT_CHUNK_SIZE) -> list[str]:
-    """Extract filter HTML, chunk it, and save to files."""
-    filter_html = extract_filter_html(html)
-    logger.info(f"Extracted {len(filter_html)} characters of filter HTML")
+                     chunk_size: int = DEFAULT_CHUNK_SIZE,
+                     save_to_disk: bool = False) -> list[str]:
+    """
+    Extract filter HTML, chunk it, and optionally save to files.
     
-    chunks = chunk_html(filter_html, chunk_size)
-    logger.info(f"Split into {len(chunks)} chunks of ~{chunk_size} characters each")
-    
-    return save_chunks(chunks, output_dir, prefix)
+    Args:
+        html: The HTML content to process
+        output_dir: Directory to save chunks to
+        prefix: Prefix for chunk filenames
+        chunk_size: Size of each chunk in characters
+        save_to_disk: If False, skip saving chunks to disk
+        
+    Returns:
+        List of file paths if saved, empty list if not saved
+    """
+    if save_to_disk:
+        filter_html = extract_filter_html(html)
+        logger.info(f"Extracted {len(filter_html)} characters of filter HTML")
+        
+        chunks = chunk_html(filter_html, chunk_size)
+        logger.info(f"Split into {len(chunks)} chunks of ~{chunk_size} characters each")
+        return save_chunks(chunks, output_dir, prefix)
+    else:
+        logger.info("Skipping chunk file output (save_to_disk=False)")
+        return []
